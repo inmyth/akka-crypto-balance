@@ -1,0 +1,10 @@
+{
+ "hitbtc" : {
+   "apikey" : "aaapppiiikeeeyyy",
+   "apisecret" : "aabbcc"
+ },
+  "yobit" : {
+    "apikey" : "aaapppiiikeeeyyy",
+    "apisecret" : "aabbcc"
+  }
+}
