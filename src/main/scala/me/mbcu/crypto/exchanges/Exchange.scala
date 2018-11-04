@@ -24,6 +24,14 @@ import scala.util.Try
 object Exchange {
   private implicit val ec: ExecutionContextExecutor = global
 
+  val exchangeMap: Map[String, ESettings] = Map[String, ESettings](elems =
+    "hitbtc"   -> ESettings("me.mbcu.crypto.exchanges.HitBTC", 400),
+    "fcoin"    -> ESettings("me.mbcu.crypto.exchanges.Fcoin", 500),
+    "yobit"    -> ESettings("me.mbcu.crypto.exchanges.Yobit", 1000),
+    "btcalpha" -> ESettings("me.mbcu.crypto.exchanges.Btcalpha", 500),
+    "livecoin" -> ESettings("me.mbcu.crypto.exchanges.Livecoin", 500)
+  )
+
   val zero = BigDecimal(0)
 
   trait SendRest{}
@@ -73,11 +81,7 @@ object Exchange {
 
   case class ESettings(classPath: String, rateMillis: Int)
 
-  val exchangeMap: Map[String, ESettings] = Map[String, ESettings](elems =
-    "hitbtc" -> ESettings("me.mbcu.crypto.exchanges.HitBTC", 400),
-    "fcoin"  -> ESettings("me.mbcu.crypto.exchanges.Fcoin", 500),
-    "yobit"  -> ESettings("me.mbcu.crypto.exchanges.Yobit", 1000)
-  )
+
 
   def credsOf(js: JsValue): Seq[Option[(String, ESettings, String, String)]] =
     exchangeMap.map(p => {

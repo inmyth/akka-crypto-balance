@@ -15,14 +15,10 @@ object HitBTC {
       .map(p => {
         val currency = (p \ "currency").as[String]
         val available = (p \ "available").as[BigDecimal] + (p \ "reserved").as[BigDecimal]
-        currency -> AccountBalance((p \ "currency").as[String], available)
+        currency -> AccountBalance(currency, available)
       })
     .toMap
 
-//  def baseCoinsOf(balances: Seq[AccountBalance]): Map[BaseCoin, AccountBalance] = {
-//    def find(baseCoin: BaseCoin): AccountBalance = balances.find(p => baseCoin.toString.equalsIgnoreCase(p.currency)).getOrElse(AccountBalance(baseCoin.toString, BigDecimal(0)))
-//    Exchange.startingBases.map(p => p -> find(p)).toMap
-//  }
 
 }
 
