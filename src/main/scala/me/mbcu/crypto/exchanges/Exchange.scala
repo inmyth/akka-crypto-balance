@@ -1,22 +1,23 @@
 package me.mbcu.crypto.exchanges
 
-import java.math.MathContext
+import java.math.BigInteger
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, PoisonPill}
+import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable}
 import akka.dispatch.ExecutionContexts.global
 import akka.stream.ActorMaterializer
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import me.mbcu.crypto.RootActor.Complete
-import me.mbcu.crypto.exchanges.Exchange.AccountBalance.WriteFile
-import me.mbcu.crypto.exchanges.Exchange.{AccountBalance, BaseCoin, Finalize, GetTicker, PrepareGetPrice, SendRest}
+import me.mbcu.crypto.exchanges.Exchange.{AccountBalance, BaseCoin, Finalize, GetAccountBalances, GetTicker, PrepareGetPrice, SendRest}
 import me.mbcu.scala.MyLogging
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import scala.collection.immutable.Queue
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
@@ -35,12 +36,14 @@ object Exchange {
 
   case class GetTicker(pair:(String, String)) extends SendRest
 
-  case class AccountBalance(currency: String, available: BigDecimal)
+  class AccountBalance(val currency: String, val available: BigDecimal)
 
   case class WriteOut(content: Out, fileOutPath: String)
 
   object AccountBalance {
-    implicit val jsonFormat: OFormat[AccountBalance] = Json.format[AccountBalance]
+    def apply(currency: String, available: BigDecimal): AccountBalance = new AccountBalance(currency.toLowerCase, available)
+
+//    implicit val jsonFormat: OFormat[AccountBalance] = Json.format[AccountBalance]
 
     object Implicits {
       implicit val writes: Writes[AccountBalance] {def writes(env: AccountBalance): JsValue} = new Writes[AccountBalance] {
@@ -68,12 +71,15 @@ object Exchange {
 
   val startingBases = Queue(BaseCoin.btc, BaseCoin.eth, BaseCoin.usd, BaseCoin.usdt)
 
-  val exchangeMap: Map[String, String] = Map[String, String](elems =
-    "hitbtc" -> "me.mbcu.crypto.exchanges.HitBTC",
-    "abc" -> "me.mbcu.crypto.exchanges.abc"
+  case class ESettings(classPath: String, rateMillis: Int)
+
+  val exchangeMap: Map[String, ESettings] = Map[String, ESettings](elems =
+    "hitbtc" -> ESettings("me.mbcu.crypto.exchanges.HitBTC", 400),
+    "fcoin"  -> ESettings("me.mbcu.crypto.exchanges.Fcoin", 500),
+    "yobit"  -> ESettings("me.mbcu.crypto.exchanges.Yobit", 1000)
   )
 
-  def credsOf(js: JsValue): Seq[Option[(String, String, String, String)]] =
+  def credsOf(js: JsValue): Seq[Option[(String, ESettings, String, String)]] =
     exchangeMap.map(p => {
       val root = js \ p._1
       if (root.isDefined) {
@@ -125,12 +131,32 @@ object Exchange {
 
   }
 
+  def signHmac(secret: String, data: String, fun: String): Array[Byte] = {
+    val signedSecret = new SecretKeySpec(secret.getBytes("UTF-8"), fun)
+    val mac = Mac.getInstance(fun)
+    mac.init(signedSecret)
+    mac.doFinal(data.getBytes("UTF-8"))
+  }
+
+  def signHmacSHA256(secret: String, data: String): Array[Byte] = signHmac(secret, data, "HmacSHA256")
+  def signHmacSHA1(secret: String, data: String): Array[Byte] = signHmac(secret, data, "HmacSHA1")
+  def signHmacSHA512(secret: String, data: String): Array[Byte] = signHmac(secret, data, "HmacSHA512")
+  def toHex(bytes: Array[Byte], isCapital: Boolean = true): String = {
+    val x = if (isCapital) "X" else "x"
+    val bi = new BigInteger(1, bytes)
+    String.format("%0" + (bytes.length << 1) + x, bi)
+  }
+
+
 }
 
-abstract class Exchange (apikey : String, apisecret: String, outPath: String) extends Actor with MyLogging {
+abstract class Exchange (apikey : String, apisecret: String, outPath: String, reqMillis: String) extends Actor with MyLogging {
+  import scala.concurrent.duration._
+  import scala.language.postfixOps
   implicit val system = ActorSystem()
   private implicit val materializer = ActorMaterializer()
-  private implicit val ec: ExecutionContextExecutor = global
+  implicit val ec: ExecutionContextExecutor = global
+  val ws = StandaloneAhcWSClient()
 
   val q = new scala.collection.mutable.Queue[SendRest]
   var root: Option[ActorRef] = None
@@ -144,11 +170,13 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String) ex
 
   def sendRequest(r: SendRest)
 
-  def start()
 
   override def receive: Receive = {
 
-    case "start" => start()
+    case "start" =>
+      root = Some(sender())
+      initDeq
+      queue(GetAccountBalances())
 
     case "dequeue" =>
       if (q.nonEmpty) {
@@ -197,6 +225,7 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String) ex
       root.foreach(_ ! Complete)
   }
 
+
   def handleBalances(b: Map[String, AccountBalance]): Unit = {
     balances ++= b.map(p => p._1.toLowerCase -> p._2)
     altCoins ++= Exchange.filterBalancesForAltCoins(b)
@@ -215,7 +244,7 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String) ex
 
   def queue(a: SendRest): Unit = q += a
 
-  def initDeq = Some(context.system.scheduler.schedule(1 second, 500 millisecond, self, "dequeue"))
+  def initDeq = Some(context.system.scheduler.schedule(200 millisecond, reqMillis.toInt millisecond, self, "dequeue"))
 
   def parse(a: SendRest, url: String, raw: String)
 

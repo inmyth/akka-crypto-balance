@@ -1,8 +1,6 @@
 package me.mbcu.crypto.exchanges
 
-import me.mbcu.crypto.exchanges.Exchange.AccountBalance
 import play.api.libs.json.{Json, OFormat}
-
 
 
 object Out {

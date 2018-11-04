@@ -1,15 +1,10 @@
 package me.mbcu.crypto.exchanges
 
-import akka.dispatch.ExecutionContexts.global
-import akka.stream.ActorMaterializer
 import me.mbcu.crypto.RootActor.Shutdown
-import me.mbcu.crypto.exchanges.Exchange.BaseCoin.BaseCoin
-import me.mbcu.crypto.exchanges.Exchange.{AccountBalance, GetAccountBalances, GetTicker, PrepareGetPrice, SendRest}
+import me.mbcu.crypto.exchanges.Exchange.{AccountBalance, GetAccountBalances, GetTicker, SendRest}
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.WSAuthScheme
-import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
-import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success, Try}
 
 object HitBTC {
@@ -20,32 +15,25 @@ object HitBTC {
       .map(p => {
         val currency = (p \ "currency").as[String]
         val available = (p \ "available").as[BigDecimal] + (p \ "reserved").as[BigDecimal]
-        currency -> AccountBalance((p \ "currency").as[String].toLowerCase, available)
+        currency -> AccountBalance((p \ "currency").as[String], available)
       })
     .toMap
 
-  def baseCoinsOf(balances: Seq[AccountBalance]): Map[BaseCoin, AccountBalance] = {
-    def find(baseCoin: BaseCoin): AccountBalance = balances.find(p => baseCoin.toString.equalsIgnoreCase(p.currency)).getOrElse(AccountBalance(baseCoin.toString, BigDecimal(0)))
-    Exchange.startingBases.map(p => p -> find(p)).toMap
-  }
+//  def baseCoinsOf(balances: Seq[AccountBalance]): Map[BaseCoin, AccountBalance] = {
+//    def find(baseCoin: BaseCoin): AccountBalance = balances.find(p => baseCoin.toString.equalsIgnoreCase(p.currency)).getOrElse(AccountBalance(baseCoin.toString, BigDecimal(0)))
+//    Exchange.startingBases.map(p => p -> find(p)).toMap
+//  }
 
 }
 
-class HitBTC(apikey: String, apisecret: String, outpath: String) extends Exchange(apikey, apisecret, outpath) {
+class HitBTC(apikey: String, apisecret: String, outpath: String, reqMillis: String) extends Exchange(apikey, apisecret, outpath, reqMillis) {
+  import play.api.libs.ws.DefaultBodyReadables._
+
   import scala.concurrent.duration._
   import scala.language.postfixOps
-  private implicit val materializer = ActorMaterializer()
-  private implicit val ec: ExecutionContextExecutor = global
-  private var ws = StandaloneAhcWSClient()
-  import play.api.libs.ws.DefaultBodyReadables._
 
   var basePrices: Map[String, BigDecimal]  = Map.empty
 
-  override def start(): Unit = {
-    root = Some(sender())
-    initDeq
-    queue(GetAccountBalances())
-  }
 
   override def sendRequest(r: Exchange.SendRest): Unit = {
     r match {
@@ -67,6 +55,7 @@ class HitBTC(apikey: String, apisecret: String, outpath: String) extends Exchang
   }
 
   override def parse(a: SendRest, url: String, raw: String): Unit = {
+    info(raw)
     val x = Try(Json parse raw)
     x match {
       case Success(js) =>
@@ -75,8 +64,12 @@ class HitBTC(apikey: String, apisecret: String, outpath: String) extends Exchang
         a match {
 
           case a: GetAccountBalances =>
-            val b = HitBTC.parseAccountBalances(js)
-            handleBalances(b)
+            if (error.isDefined) {
+              root.foreach(_ ! Shutdown(Some( s"HitBTC wrong API access $url")))
+            } else {
+              val b = HitBTC.parseAccountBalances(js)
+              handleBalances(b)
+            }
 
           case a: GetTicker =>
             val price = if(error.isDefined) BigDecimal(0) else (js \ "last").as[BigDecimal]
@@ -84,7 +77,7 @@ class HitBTC(apikey: String, apisecret: String, outpath: String) extends Exchang
 
         }
 
-      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"failed to parse json: $url")))
+      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"HitBTC failed to parse json: $url")))
 
     }
 

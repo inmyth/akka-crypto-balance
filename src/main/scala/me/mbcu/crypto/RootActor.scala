@@ -1,12 +1,15 @@
 package me.mbcu.crypto
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{Actor, Props}
 import me.mbcu.crypto.RootActor.{Complete, Shutdown}
 import me.mbcu.crypto.exchanges.Exchange
+import me.mbcu.crypto.exchanges.Exchange.ESettings
 import me.mbcu.scala.MyLogging
 import play.api.libs.json.{JsValue, Json}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
 
 object RootActor{
@@ -37,7 +40,7 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
     case Shutdown(message: Option[String]) =>
       message.foreach(error)
       implicit val executionContext: ExecutionContext = context.system.dispatcher
-      context.system.terminate()
+      Await.ready(context.system.terminate(), Duration(2, TimeUnit.SECONDS))
   }
 
   def readConfig(): JsValue = {
@@ -46,10 +49,10 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
     Json.parse(rawJson)
   }
 
-  def initExchanges(m : Seq[(String, String, String, String)]) : Unit =
+  def initExchanges(m : Seq[(String, ESettings, String, String)]) : Unit =
     m.map(p => {
-      val o = Class.forName(p._2).getConstructors()(0)
-      val args = Array[AnyRef](p._3, p._4, s"$resPath/${p._1}")
+      val o = Class.forName(p._2.classPath).getConstructors()(0)
+      val args = Array[AnyRef](p._3, p._4, s"$resPath/${p._1}", p._2.rateMillis.toString)
       context.actorOf(Props(o.newInstance(args:_*).asInstanceOf[Exchange]), p._1)
     }).foreach(_ ! "start")
 
