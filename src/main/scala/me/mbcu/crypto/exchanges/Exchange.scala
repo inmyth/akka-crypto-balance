@@ -7,6 +7,7 @@ import akka.dispatch.ExecutionContexts.global
 import akka.stream.ActorMaterializer
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import me.mbcu.crypto.{AccountBalanceString, Out, Result, Total}
 import me.mbcu.crypto.RootActor.Complete
 import me.mbcu.crypto.exchanges.Exchange.{AccountBalance, BaseCoin, Finalize, GetAccountBalances, GetTicker, PrepareGetPrice, SendRest}
 import me.mbcu.scala.MyLogging
@@ -162,6 +163,7 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
   var balances: Map[String, AccountBalance] = Map.empty
   var ticCounts: Int = 0
   val zero = BigDecimal(0)
+  val name = self.path.name
 
   def sendRequest(r: SendRest)
 

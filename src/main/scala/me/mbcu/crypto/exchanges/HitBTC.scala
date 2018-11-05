@@ -51,7 +51,7 @@ class HitBTC(apikey: String, apisecret: String, outpath: String, reqMillis: Stri
   }
 
   override def parse(a: SendRest, url: String, raw: String): Unit = {
-    info(s"${self.path.name}: $url $raw")
+    info(s"$name: $url $raw")
     val x = Try(Json parse raw)
     x match {
       case Success(js) =>
@@ -61,7 +61,7 @@ class HitBTC(apikey: String, apisecret: String, outpath: String, reqMillis: Stri
 
           case a: GetAccountBalances =>
             if (error.isDefined) {
-              root.foreach(_ ! Shutdown(Some( s"HitBTC wrong API access $url")))
+              root.foreach(_ ! Shutdown(Some( s"$name wrong API access $url")))
             } else {
               val b = HitBTC.parseAccountBalances(js)
               handleBalances(b)
@@ -73,7 +73,7 @@ class HitBTC(apikey: String, apisecret: String, outpath: String, reqMillis: Stri
 
         }
 
-      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"HitBTC failed to parse json: $url")))
+      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"$name failed to parse json: $url")))
 
     }
 

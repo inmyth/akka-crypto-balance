@@ -53,7 +53,7 @@ class Yobit(apikey: String, apisecret: String, outpath: String, reqMillis: Strin
   }
 
   override def parse(a: Exchange.SendRest, url: String, raw: String): Unit = {
-    info(s"${self.path.name}: $url $raw")
+    info(s"$name: $url $raw")
     if (raw contains "Ddos"){
       queue(a)
     } else {
@@ -71,7 +71,7 @@ class Yobit(apikey: String, apisecret: String, outpath: String, reqMillis: Strin
 
                 case 0 =>
                   val error = (js \ "error").as[String]
-                  root.foreach(_ ! Shutdown(Some(s"Yobit error $error")))
+                  root.foreach(_ ! Shutdown(Some(s"$name error $error")))
               }
 
             case a: GetTicker =>
@@ -81,7 +81,7 @@ class Yobit(apikey: String, apisecret: String, outpath: String, reqMillis: Strin
 
           }
 
-        case Failure(e) => root.foreach(_ ! Shutdown(Some( s"Yobit failed to parse json: $url")))
+        case Failure(e) => root.foreach(_ ! Shutdown(Some( s"$name failed to parse json: $url")))
 
       }
     }

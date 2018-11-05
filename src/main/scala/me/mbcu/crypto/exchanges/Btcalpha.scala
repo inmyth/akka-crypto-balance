@@ -52,7 +52,7 @@ class Btcalpha(apikey: String, apisecret: String, outpath: String, reqMillis: St
   }
 
   override def parse(a: Exchange.SendRest, url: String, raw: String): Unit = {
-    info(s"${self.path.name}: $url $raw")
+    info(s"$name: $url $raw")
     val x = Try(Json parse raw)
     x match {
 
@@ -63,7 +63,7 @@ class Btcalpha(apikey: String, apisecret: String, outpath: String, reqMillis: St
           case a: GetAccountBalances =>
             if (detail.isDefined){
               val detailString = detail.as[String]
-              root.foreach(_ ! Shutdown(Some( s"Btcalpha: $detailString")))
+              root.foreach(_ ! Shutdown(Some( s"$name: $detailString")))
             } else {
               val b = Btcalpha.parseAccountBalances(js)
               handleBalances(b)
@@ -75,7 +75,7 @@ class Btcalpha(apikey: String, apisecret: String, outpath: String, reqMillis: St
             handleTicker(a, price)
         }
 
-      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"Btcalpha failed to parse json: $raw")))
+      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"$name failed to parse json: $url")))
 
     }
   }

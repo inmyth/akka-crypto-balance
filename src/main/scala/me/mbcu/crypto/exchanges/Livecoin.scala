@@ -44,7 +44,7 @@ class Livecoin(apikey: String, apisecret: String, outpath: String, reqMillis: St
     }
 
   override def parse(a: Exchange.SendRest, url: String, raw: String): Unit = {
-    info(s"${self.path.name}: $url $raw")
+    info(s"$name: $url $raw")
     val x = Try(Json parse raw )
     x match {
       case Success(js) =>
@@ -53,7 +53,7 @@ class Livecoin(apikey: String, apisecret: String, outpath: String, reqMillis: St
           case a: GetAccountBalances =>
             val success = js \ "success"
             if (success.isDefined && !success.as[Boolean]){
-              root.foreach(_ ! Shutdown(Some("Livecoin wrong API access")))
+              root.foreach(_ ! Shutdown(Some( s"$name wrong API access $url")))
             } else {
               val b = Livecoin.parseAccountBalances(js)
               handleBalances(b)
@@ -66,7 +66,7 @@ class Livecoin(apikey: String, apisecret: String, outpath: String, reqMillis: St
 
         }
 
-      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"Livecoin failed to parse json: $raw")))
+      case Failure(e) => root.foreach(_ ! Shutdown(Some( s"$name failed to parse json: $url")))
 
     }
 

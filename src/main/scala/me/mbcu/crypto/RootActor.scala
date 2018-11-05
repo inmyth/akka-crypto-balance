@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, PoisonPill, Props}
 import me.mbcu.crypto.RootActor.{Complete, Shutdown}
 import me.mbcu.crypto.exchanges.Exchange.{BaseCoin, ESettings}
-import me.mbcu.crypto.exchanges.{AccountBalanceString, Exchange, Out, Result}
+import me.mbcu.crypto.exchanges.Exchange
 import me.mbcu.scala.MyLogging
 import play.api.libs.json.{JsValue, Json}
 
@@ -51,7 +51,7 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
         val out = Out(res, noUsdAllBalances :+ bUsd)
         val json = Json.prettyPrint(Json.toJson(out))
         RootActor.writeFile(s"$resPath/out.txt", json)
-        info("All Done, Shutting Down")
+        info("All Done, Plz Shut Down")
         self ! Shutdown(None)
         self ! PoisonPill
       }

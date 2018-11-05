@@ -1,4 +1,4 @@
-package me.mbcu.crypto.exchanges
+package me.mbcu.crypto
 
 import play.api.libs.json.{Json, OFormat}
 
