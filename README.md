@@ -1,5 +1,8 @@
 # Crypto Balance Aggregator
 
+- Get each of altcoin's balance with all base coins represented in altcoin's equivalent
+- Get total account balance represented in base coins
+
 ```
 java -jar fatjar.jar <path to config> <dir to log> <dir to result>
 ```

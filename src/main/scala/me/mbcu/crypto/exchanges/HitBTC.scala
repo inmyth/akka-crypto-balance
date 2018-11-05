@@ -51,7 +51,7 @@ class HitBTC(apikey: String, apisecret: String, outpath: String, reqMillis: Stri
   }
 
   override def parse(a: SendRest, url: String, raw: String): Unit = {
-    info(raw)
+    info(s"${self.path.name}: $url $raw")
     val x = Try(Json parse raw)
     x match {
       case Success(js) =>

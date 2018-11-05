@@ -44,8 +44,7 @@ class Livecoin(apikey: String, apisecret: String, outpath: String, reqMillis: St
     }
 
   override def parse(a: Exchange.SendRest, url: String, raw: String): Unit = {
-    info(raw)
-
+    info(s"${self.path.name}: $url $raw")
     val x = Try(Json parse raw )
     x match {
       case Success(js) =>

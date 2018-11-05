@@ -1,10 +1,8 @@
 package me.mbcu.crypto.exchanges
 
 import java.math.BigInteger
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable}
+import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, PoisonPill}
 import akka.dispatch.ExecutionContexts.global
 import akka.stream.ActorMaterializer
 import javax.crypto.Mac
@@ -46,8 +44,6 @@ object Exchange {
 
   class AccountBalance(val currency: String, val available: BigDecimal)
 
-  case class WriteOut(content: Out, fileOutPath: String)
-
   object AccountBalance {
     def apply(currency: String, available: BigDecimal): AccountBalance = new AccountBalance(currency.toLowerCase, available)
 
@@ -81,8 +77,6 @@ object Exchange {
 
   case class ESettings(classPath: String, rateMillis: Int)
 
-
-
   def credsOf(js: JsValue): Seq[Option[(String, ESettings, String, String)]] =
     exchangeMap.map(p => {
       val root = js \ p._1
@@ -98,7 +92,6 @@ object Exchange {
 
   def filterBalancesForAltCoins(balances: Map[String, AccountBalance]): Seq[String] = balances.filter(p => BaseCoin.withNameOpt(p._1.toLowerCase).isEmpty).keys.toSeq.map(_.toLowerCase)
 
-  def writeFile(path: String, content: String): Unit = Files.write(Paths.get(path), content.getBytes(StandardCharsets.UTF_8))
 
   def totalAlt(coin: String, coinBalance: BigDecimal, prices: Map[String, BigDecimal], balances: Map[String, AccountBalance]): BigDecimal =
     // totalAlt sums amount of this coin and base coins' equivalent of this coin
@@ -151,13 +144,11 @@ object Exchange {
     String.format("%0" + (bytes.length << 1) + x, bi)
   }
 
-
 }
 
 abstract class Exchange (apikey : String, apisecret: String, outPath: String, reqMillis: String) extends Actor with MyLogging {
   import scala.concurrent.duration._
   import scala.language.postfixOps
-  implicit val system = ActorSystem()
   private implicit val materializer = ActorMaterializer()
   implicit val ec: ExecutionContextExecutor = global
   val ws = StandaloneAhcWSClient()
@@ -222,11 +213,9 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
       }).filter(p => BigDecimal(p.total) > zero)
 
       val noZeroPrices = prices.filter(_._2 > zero).map(p => p._1 -> p._2.bigDecimal.toPlainString)
-      val balanceString = balances.values.map(p => AccountBalanceString(p.currency, p.available.bigDecimal.toPlainString)).toSeq
-      val out = json(Out(balanceString, noZeroPrices, alt ++ bas))
-      Exchange.writeFile(outPath, out)
-      info(s"Result saved to $outPath")
-      root.foreach(_ ! Complete)
+      val balanceString = balances.values.map(p => p.currency -> AccountBalanceString(p.currency, p.available.bigDecimal.toPlainString)).toMap
+      root.foreach(_ ! Complete(Result(self.path.name, balanceString, noZeroPrices, alt ++ bas)))
+      self ! PoisonPill
   }
 
 

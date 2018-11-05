@@ -1,27 +1,33 @@
 package me.mbcu.crypto
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, PoisonPill, Props}
 import me.mbcu.crypto.RootActor.{Complete, Shutdown}
-import me.mbcu.crypto.exchanges.Exchange
-import me.mbcu.crypto.exchanges.Exchange.ESettings
+import me.mbcu.crypto.exchanges.Exchange.{BaseCoin, ESettings}
+import me.mbcu.crypto.exchanges.{AccountBalanceString, Exchange, Out, Result}
 import me.mbcu.scala.MyLogging
 import play.api.libs.json.{JsValue, Json}
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.collection.mutable
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext}
 
 object RootActor{
 
   case class Shutdown(message: Option[String])
 
-  case class Complete()
+  case class Complete(result: Result)
+
+  def writeFile(path: String, content: String): Unit = Files.write(Paths.get(path), content.getBytes(StandardCharsets.UTF_8))
 
 }
 
 class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
   var child = 0
+  val res: mutable.Buffer[Result] = mutable.Buffer.empty
 
   override def receive: Receive = {
     case "start"=>
@@ -30,11 +36,24 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
       child = m.size
       initExchanges(m)
 
-    case Complete =>
-      child -= 1
-      if (child == 0) {
-        info("All done")
+    case Complete(r) =>
+      res += r
+      if (res.size == child){
+       val allBalances =  res.flatMap(_.balances.values).groupBy(_.currency).map(p => {
+          val sum  = p._2.map(a => BigDecimal(a.has)).sum
+          AccountBalanceString(p._1, sum.bigDecimal.toPlainString)
+        }).toSeq
+
+        val usdt = allBalances.find(_.currency == BaseCoin.usdt.toString).getOrElse(AccountBalanceString(BaseCoin.usdt.toString, "0"))
+        val usd  = allBalances.find(_.currency == BaseCoin.usd.toString).getOrElse(AccountBalanceString(BaseCoin.usd.toString, "0"))
+        val bUsd = AccountBalanceString("usdAndT", (BigDecimal(usdt.has) + BigDecimal(usd.has)).bigDecimal.toPlainString)
+        val noUsdAllBalances = allBalances.filterNot(p => p.currency == BaseCoin.usdt.toString || p.currency == BaseCoin.usd.toString)
+        val out = Out(res, noUsdAllBalances :+ bUsd)
+        val json = Json.prettyPrint(Json.toJson(out))
+        RootActor.writeFile(s"$resPath/out.txt", json)
+        info("All Done, Shutting Down")
         self ! Shutdown(None)
+        self ! PoisonPill
       }
 
     case Shutdown(message: Option[String]) =>

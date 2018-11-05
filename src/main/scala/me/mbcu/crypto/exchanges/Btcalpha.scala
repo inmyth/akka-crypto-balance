@@ -52,7 +52,7 @@ class Btcalpha(apikey: String, apisecret: String, outpath: String, reqMillis: St
   }
 
   override def parse(a: Exchange.SendRest, url: String, raw: String): Unit = {
-    info(raw)
+    info(s"${self.path.name}: $url $raw")
     val x = Try(Json parse raw)
     x match {
 
@@ -73,7 +73,6 @@ class Btcalpha(apikey: String, apisecret: String, outpath: String, reqMillis: St
             val array = js.as[Array[JsValue]]
             val price = if(array.isEmpty) BigDecimal(0) else Btcalpha.parseTickerForPrice(array)
             handleTicker(a, price)
-
         }
 
       case Failure(e) => root.foreach(_ ! Shutdown(Some( s"Btcalpha failed to parse json: $raw")))
