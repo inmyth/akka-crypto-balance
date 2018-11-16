@@ -48,8 +48,6 @@ object Exchange {
   object AccountBalance {
     def apply(currency: String, available: BigDecimal): AccountBalance = new AccountBalance(currency.toLowerCase, available)
 
-//    implicit val jsonFormat: OFormat[AccountBalance] = Json.format[AccountBalance]
-
     object Implicits {
       implicit val writes: Writes[AccountBalance] {def writes(env: AccountBalance): JsValue} = new Writes[AccountBalance] {
         def writes(ab: AccountBalance): JsValue = Json.obj(
@@ -242,7 +240,5 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
   def initDeq = Some(context.system.scheduler.schedule(200 millisecond, reqMillis.toInt millisecond, self, "dequeue"))
 
   def parse(a: SendRest, url: String, raw: String)
-
-
 
 }

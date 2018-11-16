@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, PoisonPill, Props}
+import me.mbcu.crypto.CsvReport.CsvCoin
 import me.mbcu.crypto.RootActor.{Complete, Shutdown}
 import me.mbcu.crypto.exchanges.Exchange.{BaseCoin, ESettings}
 import me.mbcu.crypto.exchanges.Exchange
@@ -29,11 +30,11 @@ object RootActor{
       Asset(p._1, sum.bigDecimal.toPlainString)
     }).toSeq
 
-    val pusdt = allBalances.find(_.currency == BaseCoin.usdt.toString).getOrElse(Asset(BaseCoin.usdt.toString, "0"))
-    val pusd  = allBalances.find(_.currency == BaseCoin.usd.toString).getOrElse(Asset(BaseCoin.usd.toString, "0"))
-    val pbUsd = Asset("usdAndT", (BigDecimal(pusdt.has) + BigDecimal(pusd.has)).bigDecimal.toPlainString)
-    val pNoUsdAllBalances = allBalances.filterNot(p => p.currency == BaseCoin.usdt.toString || p.currency == BaseCoin.usd.toString)
-    pNoUsdAllBalances :+ pbUsd
+    val usdt  = allBalances.find(_.currency == BaseCoin.usdt.toString).getOrElse(Asset(BaseCoin.usdt.toString, "0"))
+    val usd   = allBalances.find(_.currency == BaseCoin.usd.toString).getOrElse(Asset(BaseCoin.usd.toString, "0"))
+    val usdnt = Asset(CsvCoin.usdnt.toString, (BigDecimal(usdt.has) + BigDecimal(usd.has)).bigDecimal.toPlainString)
+    val noUsdAllBalances = allBalances.filterNot(p => p.currency == BaseCoin.usdt.toString || p.currency == BaseCoin.usd.toString)
+    noUsdAllBalances :+ usdnt
   }
 
 }
@@ -42,11 +43,12 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
   import RootActor._
   var child = 0
   val res: mutable.Buffer[Result] = mutable.Buffer.empty
+  var lastOpMs: Long = 0
 
   override def receive: Receive = {
     case "start"=>
       val jsCfg = readConfig()
-      val m = Exchange.credsOf(jsCfg).flatten
+      val m = Exchange.credsOf((jsCfg \ "apiKeys").as[JsValue]).flatten
       child = m.size
       initExchanges(m)
 
@@ -58,9 +60,9 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
         val out = Out(res, allBalances, allTotals)
         val json = Json.prettyPrint(Json.toJson(out))
         RootActor.writeFile(s"$resPath/out.txt", json)
-        info("All Done, Plz Shut Down")
-        self ! Shutdown(None)
-        self ! PoisonPill
+//        info("All Done, Plz Shut Down")
+//        self ! Shutdown(None)
+//        self ! PoisonPill
       }
 
     case Shutdown(message: Option[String]) =>
