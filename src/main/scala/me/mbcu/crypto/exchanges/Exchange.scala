@@ -2,14 +2,14 @@ package me.mbcu.crypto.exchanges
 
 import java.math.BigInteger
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, PoisonPill}
+import akka.actor.{Actor, ActorRef, Cancellable, PoisonPill}
 import akka.dispatch.ExecutionContexts.global
 import akka.stream.ActorMaterializer
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import me.mbcu.crypto.{AccountBalanceString, Out, Result, Total}
 import me.mbcu.crypto.RootActor.Complete
 import me.mbcu.crypto.exchanges.Exchange.{AccountBalance, BaseCoin, Finalize, GetAccountBalances, GetTicker, PrepareGetPrice, SendRest}
+import me.mbcu.crypto.{Asset, Out, Result}
 import me.mbcu.scala.MyLogging
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
@@ -202,8 +202,8 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
     case Finalize =>
       val alt = altCoins.map(p => {
         val balance = balances(p.toLowerCase()).available
-        Total(p, Exchange.totalAlt(p, balance, prices, balances).bigDecimal.toPlainString)
-       }).filter(p => BigDecimal(p.total) > zero)
+        Asset(p, Exchange.totalAlt(p, balance, prices, balances).bigDecimal.toPlainString)
+       }).filter(p => BigDecimal(p.has) > zero)
 
       val bas = Exchange.startingBases.map(p => {
         val s = p.toString.toLowerCase
@@ -211,11 +211,11 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
           case Some(l) => l.available
           case _ => zero
         }
-        Total(s, Exchange.totalGeneral(s, balance, prices, balances).bigDecimal.toPlainString)
-      }).filter(p => BigDecimal(p.total) > zero)
+        Asset(s, Exchange.totalGeneral(s, balance, prices, balances).bigDecimal.toPlainString)
+      }).filter(p => BigDecimal(p.has) > zero)
 
       val noZeroPrices = prices.filter(_._2 > zero).map(p => p._1 -> p._2.bigDecimal.toPlainString)
-      val balanceString = balances.values.map(p => p.currency -> AccountBalanceString(p.currency, p.available.bigDecimal.toPlainString)).toMap
+      val balanceString = balances.values.map(p => p.currency -> Asset(p.currency, p.available.bigDecimal.toPlainString)).toMap
       root.foreach(_ ! Complete(Result(self.path.name, balanceString, noZeroPrices, alt ++ bas)))
       self ! PoisonPill
   }

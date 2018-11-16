@@ -1,15 +1,13 @@
 package me.mbcu.crypto
 
 import java.util.TimeZone
-import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Props}
 import akka.dispatch.ExecutionContexts.global
 import akka.stream.ActorMaterializer
 import me.mbcu.scala.MyLoggingSingle
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.ExecutionContextExecutor
 
 object Application extends App {
   implicit val system = ActorSystem()

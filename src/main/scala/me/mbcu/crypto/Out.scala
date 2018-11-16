@@ -6,23 +6,18 @@ import play.api.libs.json.{Json, OFormat}
 object Out {
   implicit val jsonFormat: OFormat[Out] = Json.format[Out]
 }
-case class Out(report: Seq[Result], totalBalances: Seq[AccountBalanceString])
+case class Out(report: Seq[Result], totalBalances: Seq[Asset], totalValues: Seq[Asset])
 
 object Result {
   implicit val jsonFormat: OFormat[Result] = Json.format[Result]
 }
-case class Result(name: String, balances: Map[String, AccountBalanceString], prices: Map[String, String], totals: Seq[Total])
+case class Result(name: String, balances: Map[String, Asset], prices: Map[String, String], totals: Seq[Asset])
 
-object Total {
-  implicit val jsonFormat: OFormat[Total] = Json.format[Total]
+
+object Asset {
+  implicit val jsonFormat: OFormat[Asset] = Json.format[Asset]
 }
-case class Total(name: String, total: String)
-
-
-object AccountBalanceString {
-  implicit val jsonFormat: OFormat[AccountBalanceString] = Json.format[AccountBalanceString]
-}
-case class AccountBalanceString(currency: String, has: String)
+case class Asset(currency: String, has: String)
 
 
 

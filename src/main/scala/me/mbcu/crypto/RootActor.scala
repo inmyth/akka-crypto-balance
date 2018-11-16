@@ -23,9 +23,23 @@ object RootActor{
 
   def writeFile(path: String, content: String): Unit = Files.write(Paths.get(path), content.getBytes(StandardCharsets.UTF_8))
 
+  def buildAssetsSum(in: Seq[Asset]): Seq[Asset] = {
+    val allBalances =  in.groupBy(_.currency).map(p => {
+      val sum  = p._2.map(a => BigDecimal(a.has)).sum
+      Asset(p._1, sum.bigDecimal.toPlainString)
+    }).toSeq
+
+    val pusdt = allBalances.find(_.currency == BaseCoin.usdt.toString).getOrElse(Asset(BaseCoin.usdt.toString, "0"))
+    val pusd  = allBalances.find(_.currency == BaseCoin.usd.toString).getOrElse(Asset(BaseCoin.usd.toString, "0"))
+    val pbUsd = Asset("usdAndT", (BigDecimal(pusdt.has) + BigDecimal(pusd.has)).bigDecimal.toPlainString)
+    val pNoUsdAllBalances = allBalances.filterNot(p => p.currency == BaseCoin.usdt.toString || p.currency == BaseCoin.usd.toString)
+    pNoUsdAllBalances :+ pbUsd
+  }
+
 }
 
 class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
+  import RootActor._
   var child = 0
   val res: mutable.Buffer[Result] = mutable.Buffer.empty
 
@@ -39,16 +53,9 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
     case Complete(r) =>
       res += r
       if (res.size == child){
-       val allBalances =  res.flatMap(_.balances.values).groupBy(_.currency).map(p => {
-          val sum  = p._2.map(a => BigDecimal(a.has)).sum
-          AccountBalanceString(p._1, sum.bigDecimal.toPlainString)
-        }).toSeq
-
-        val usdt = allBalances.find(_.currency == BaseCoin.usdt.toString).getOrElse(AccountBalanceString(BaseCoin.usdt.toString, "0"))
-        val usd  = allBalances.find(_.currency == BaseCoin.usd.toString).getOrElse(AccountBalanceString(BaseCoin.usd.toString, "0"))
-        val bUsd = AccountBalanceString("usdAndT", (BigDecimal(usdt.has) + BigDecimal(usd.has)).bigDecimal.toPlainString)
-        val noUsdAllBalances = allBalances.filterNot(p => p.currency == BaseCoin.usdt.toString || p.currency == BaseCoin.usd.toString)
-        val out = Out(res, noUsdAllBalances :+ bUsd)
+        val allBalances = buildAssetsSum(res.flatMap(_.balances.values))
+        val allTotals = buildAssetsSum(res.flatMap(_.totals))
+        val out = Out(res, allBalances, allTotals)
         val json = Json.prettyPrint(Json.toJson(out))
         RootActor.writeFile(s"$resPath/out.txt", json)
         info("All Done, Plz Shut Down")
