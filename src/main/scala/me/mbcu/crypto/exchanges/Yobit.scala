@@ -32,8 +32,6 @@ object Yobit {
 
   def parseTickerForPrice(js: JsValue): BigDecimal = (js.as[JsObject].fields.head._2 \ "last").as[BigDecimal]
 
-
-
 }
 
 class Yobit(apikey: String, apisecret: String, outpath: String, reqMillis: String) extends Exchange(apikey, apisecret, outpath, reqMillis) {

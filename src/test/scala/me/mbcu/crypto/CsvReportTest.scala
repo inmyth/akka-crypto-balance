@@ -1,8 +1,12 @@
 package me.mbcu.crypto
 
 import java.math.MathContext
+import java.time.{LocalDateTime, ZoneId}
+import java.time.format.{DateTimeFormatter, FormatStyle}
+import java.util.Locale
 
 import me.mbcu.crypto.CsvReport.{AmountChange, CsvCoin}
+import org.joda.time.DateTime
 import org.scalatest.FunSuite
 import play.api.libs.json.{JsValue, Json}
 
@@ -257,8 +261,8 @@ class CsvReportTest extends FunSuite {
       |  } ]
       |}
     """.stripMargin
-  val js = Json.parse(in)
-  val start =
+  val now = Json.parse(in).as[Out]
+  val old =
     """
       |[
       |  {
@@ -280,101 +284,18 @@ class CsvReportTest extends FunSuite {
       |]
     """.stripMargin
 
-  val oldTotalBalances = Json.parse(start).as[Array[Asset]].toVector
+  val oldTotalBalances = Json.parse(old).as[Array[Asset]].toVector
 
-  test("start test") {
-      val newTotalBalances = (js \ "totalBalances").as[Array[Asset]].toVector
+  test("calculate change test") {
+      val newTotalBalances = now.totalBalances.toVector
       val changes = CsvReport.changeOf(oldTotalBalances, newTotalBalances)
       assert(changes.find(_.currency == CsvCoin.usdnt.toString).get.now.setScale(5, RoundingMode.DOWN) == BigDecimal(102.96356).setScale(5, RoundingMode.DOWN))
   }
 
   test("csv structure") {
-    val sb = new StringBuffer("Exchange,")
-    sb.append(CsvReport.csvCoins.mkString(","))
-    sb.append("\n")
-    val report = ( js \ "report").as[Array[Result]]
-    report.map(p => {
-      val r = new StringBuffer(p.name)
-      r.append(",")
-      val z = CsvReport.csvCoins.map(q => p.balances.find(_._1 == q.toString).getOrElse(q.toString -> Asset(q.toString, "0"))._2.has)
-      r.append(z.mkString(","))
-      r.append("\n")
-      r.toString
-    }).foreach(sb.append)
-
-    val totalBalances = (js \ "totalBalances").as[Array[Asset]]
-    val totals = CsvReport.csvCoins.map(q => BigDecimal(totalBalances.find(_.currency == q.toString).getOrElse(Asset(q.toString, "0")).has)).mkString(",")
-    sb.append("total,")
-    sb.append(totals)
-    sb.append("\n")
-    sb.append("\n")
-
-
-    report.foreach(p => {
-      sb.append(p.name)
-      sb.append(",prices\n")
-      p.prices
-        .map(p => {
-          val z = p._1.split("_")
-          (z(0), z(1), BigDecimal(p._2))
-        })
-//        .filter(p => CsvReport.CsvCoin.withNameOpt(p._1).nonEmpty && CsvReport.CsvCoin.withNameOpt(p._2).nonEmpty)
-        .foreach(p => {
-          sb.append(p._1)
-          sb.append("/")
-          sb.append(p._2)
-          sb.append(",")
-          sb.append(p._3)
-          sb.append("\n")
-
-         })
-
-      sb.append("\n")
-
-//      CsvReport.csvCoins
-//        .flatMap(p => CsvReport.csvCoins.map(q => (p, q)))
-//        .foreach(println)
-
-
-    })
-
-    sb.append("header,Aggregated Value\n")
-    val totalValues = (js \ "totalValues").as[Array[Asset]]
-    CsvReport.csvCoins.foreach(p => {
-      val v = totalValues.find(_.currency == p.toString).getOrElse(Asset(p.toString, "0")).has
-      sb.append(p.toString)
-      sb.append(",")
-      sb.append(v)
-      sb.append("\n")
-    })
-    sb.append("\n")
-
-    sb.append("header, Total Amount, Start Amount, Change %\n")
-    val newTotalBalances = (js \ "totalBalances").as[Array[Asset]].toVector
-    val changes = CsvReport.changeOf(oldTotalBalances, newTotalBalances)
-    CsvReport.csvCoins.foreach(p => {
-      val v = changes.find(_.currency == p.toString).getOrElse(AmountChange(p.toString, BigDecimal("0"), BigDecimal("0"), BigDecimal("0")))
-      sb.append(v.currency)
-      sb.append(",")
-      sb.append(v.now)
-      sb.append(",")
-      sb.append(v.old)
-      sb.append(",")
-      sb.append(v.diff)
-      sb.append("\n")
-    })
-
-    sb.append("\n")
-    sb.append("Total Change,,,")
-    val totalChange = CsvReport.averageOf(changes.map(_.diff))
-    sb.append(totalChange)
-    sb.append("\n")
-
-
-    println(sb.toString)
-//    assert(sb.toString == "aa")
-
-
+    val res = CsvReport.build(now, oldTotalBalances)
+    assert(res.contains("Total Change,,,119.864028127716551625"))
   }
+
 
 }

@@ -1,6 +1,6 @@
 name := "akka-crypto-balance"
 
-version := "1.0"
+version := "1.1"
 
 scalaVersion := "2.12.7"
 
@@ -27,6 +27,5 @@ libraryDependencies ++= Seq(
 
 excludeDependencies += "commons-logging" % "commons-logging"
 libraryDependencies += "com.github.inmyth" % "scala-mylogging" % "26b5b2c"
-libraryDependencies += "com.typesafe.play" %% "play-json-joda" % "2.6.9"
 libraryDependencies += "com.typesafe.play" %% "play-ahc-ws-standalone" % "2.0.0-M1"
 libraryDependencies += "com.typesafe.play" %% "play-ws-standalone-json" % "2.0.0-M1"

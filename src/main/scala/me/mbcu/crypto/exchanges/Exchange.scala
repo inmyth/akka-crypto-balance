@@ -218,13 +218,11 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
       self ! PoisonPill
   }
 
-
   def handleBalances(b: Map[String, AccountBalance]): Unit = {
     balances ++= b.map(p => p._1.toLowerCase -> p._2)
     altCoins ++= Exchange.filterBalancesForAltCoins(b)
     self ! PrepareGetPrice
   }
-
 
   def handleTicker(a: GetTicker, price: BigDecimal): Unit = {
     ticCounts -= 1

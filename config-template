@@ -1,10 +1,46 @@
 {
- "hitbtc" : {
-   "apikey" : "aaapppiiikeeeyyy",
-   "apisecret" : "aabbcc"
- },
-  "yobit" : {
-    "apikey" : "aaapppiiikeeeyyy",
-    "apisecret" : "aabbcc"
+  "env": {
+    "isProduction" : false,
+    "repeatHour":24
+  },
+  "startingBalances": [
+    {
+      "currency": "eth",
+      "has": "100"
+    },
+    {
+      "currency": "btc",
+      "has": "50"
+    },
+    {
+      "currency": "noah",
+      "has": "10000000"
+    },
+    {
+      "currency": "usdnt",
+      "has": "40000"
+    }
+  ],
+  "apiKeys": {
+    "hitbtc": {
+      "apikey": "aaa",
+      "apisecret": "bbb"
+    },
+    "fcoin": {
+      "apikey": "aaa",
+      "apisecret": "ccc"
+    },
+    "yobit": {
+      "apikey": "g",
+      "apisecret": "d"
+    },
+    "btcalpha": {
+      "apikey": "sdfsd",
+      "apisecret": "hgjhgj"
+    },
+    "livecoin": {
+      "apikey": "43gf",
+      "apisecret": "sdf"
+    }
   }
 }
