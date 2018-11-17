@@ -1,5 +1,6 @@
 package me.mbcu.crypto
 
+import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.time.format.DateTimeFormatter
@@ -12,6 +13,11 @@ import me.mbcu.crypto.CsvReport.CsvCoin
 import me.mbcu.crypto.exchanges.Exchange
 import me.mbcu.crypto.exchanges.Exchange.{BaseCoin, ESettings}
 import me.mbcu.scala.MyLogging
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.ContentType
+import org.apache.http.entity.mime.{HttpMultipartMode, MultipartEntityBuilder}
+import org.apache.http.entity.mime.content.{FileBody, StringBody}
+import org.apache.http.impl.client.HttpClients
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
@@ -48,24 +54,44 @@ object RootActor{
 
   def currentTime: String = LocalDateTime.now(ZoneId.of("Asia/Tokyo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
 
+  def telegram(apiKey: String, channel: String, resultPath: String, fileName: String): Unit = {
+    val client = HttpClients.createDefault()
+    val file = new File(s"$resultPath/$fileName")
+    val post = new HttpPost(s"https://api.telegram.org/bot$apiKey/sendDocument")
+    val fileBody =  new FileBody(file, ContentType.DEFAULT_BINARY)
+    val builder = MultipartEntityBuilder.create()
+    builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+    builder.addBinaryBody("document", file, ContentType.APPLICATION_OCTET_STREAM, fileName)
+    builder.addPart("chat_id", new StringBody(channel, ContentType.MULTIPART_FORM_DATA))
+    val entity = builder.build
+    post.setEntity(entity)
+    client.execute(post)
+    client.close()
+  }
+
 }
 
 class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
   private implicit val ec: ExecutionContextExecutor = global
   import RootActor._
   var startingBalance: Seq[Asset] = Seq.empty
+  var telegramApiKey  = ""
+  var telegramChannel = ""
   var creds: Seq[(String, ESettings, String, String)] = Seq.empty
   var child = 0
   val res: mutable.Buffer[Result] = mutable.Buffer.empty
-  var lastFile: String = "fresh"
   var intervalSec: Int = 0
+  var lastFile: String = "fresh"
+
 
   override def receive: Receive = {
     case "start"=>
       val jsCfg = read(cfgPath)
-      creds ++= Exchange.credsOf((jsCfg \ "apiKeys").as[JsValue]).flatten
+      creds           ++= Exchange.credsOf((jsCfg \ "apiKeys").as[JsValue]).flatten
       startingBalance ++= (jsCfg \ "startingBalances").as[Array[Asset]]
-      intervalSec = if (!(jsCfg \ "env" \ "isProduction").as[Boolean]) 24 * 86400 else 10
+      telegramApiKey  = (jsCfg \ "telegram" \ "apiKey").as[String]
+      telegramChannel = (jsCfg \ "telegram" \ "channel").as[String]
+      intervalSec     = if ((jsCfg \ "env" \ "isProduction").as[Boolean]) 24 * 86400 else 10
       self ! "reset"
 
     case "reset" =>
@@ -85,7 +111,9 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
         RootActor.writeFile(s"$resPath/$newFileName.json", json)
         val oldTotalBalances = if (lastFile == "fresh") startingBalance else read(s"$resPath/$lastFile.json").as[Out].totalBalances
         val csvReport = CsvReport.build(out, oldTotalBalances.toVector)
-        RootActor.writeFile(s"$resPath/$newFileName.csv", csvReport)
+        val csvFileName = s"$newFileName.csv"
+        RootActor.writeFile(s"$resPath/$csvFileName", csvReport)
+        telegram(telegramApiKey, telegramChannel, resPath, csvFileName)
         lastFile = newFileName
         context.system.scheduler.scheduleOnce(intervalSec second, self, "reset")
       }

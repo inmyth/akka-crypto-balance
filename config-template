@@ -1,7 +1,10 @@
 {
   "env": {
-    "isProduction" : false,
-    "repeatHour":24
+    "isProduction" : true
+  },
+  "telegram" : {
+    "apiKey": "763453666:asfse_1egfc",
+    "channel" : "-100439053434"
   },
   "startingBalances": [
     {
