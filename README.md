@@ -4,6 +4,8 @@
 - Get total account balance represented in base coins
 - config's isProduction == false will set the scheduler at 10s
 
+
+
 ## Creating Telegram API Key
 
 - Create a Telegram public channel (only works from app not browser)
@@ -19,7 +21,18 @@
 java -jar fatjar.jar <path to config> <dir to log> <dir to result>
 ```
 
+## Notes
+
+Beware or usdnt and usd, usdt conversion. `usdnt` is mostly used in csv reporting. Some in External, RootActor and config starting and external balances.
+
+Refer to json report for clean result. From here result is converted to csv, including usdnt conversion.
+
 ## VERSIONS
+
+1.3
+- added external balanced
+- formatted csv
+    - price comes from external/hitbtc
 
 1.2
 - automated Telegram csv send

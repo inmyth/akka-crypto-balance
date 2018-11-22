@@ -22,7 +22,7 @@ object HitBTC {
 
 }
 
-class HitBTC(apikey: String, apisecret: String, outpath: String, reqMillis: String) extends Exchange(apikey, apisecret, outpath, reqMillis) {
+class HitBTC(apikey: String, apisecret: String, reqMillis: String) extends Exchange(apikey, apisecret, reqMillis) {
   import play.api.libs.ws.DefaultBodyReadables._
 
   import scala.concurrent.duration._

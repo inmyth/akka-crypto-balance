@@ -1,10 +1,10 @@
 {
   "env": {
-    "isProduction" : true
+    "isProduction": true
   },
-  "telegram" : {
+  "telegram": {
     "apiKey": "763453666:asfse_1egfc",
-    "channel" : "-100439053434"
+    "channel": "-100439053434"
   },
   "startingBalances": [
     {
@@ -22,6 +22,24 @@
     {
       "currency": "usdnt",
       "has": "40000"
+    }
+  ],
+  "externalBalances": [
+    {
+      "currency": "eth",
+      "has": "300"
+    },
+    {
+      "currency": "btc",
+      "has": "20"
+    },
+    {
+      "currency": "noah",
+      "has": "350300000"
+    },
+    {
+      "currency": "usdnt",
+      "has": "454344"
     }
   ],
   "apiKeys": {

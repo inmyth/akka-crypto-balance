@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, Props}
 import akka.dispatch.ExecutionContexts.global
 import me.mbcu.crypto.CsvReport.CsvCoin
-import me.mbcu.crypto.exchanges.Exchange
+import me.mbcu.crypto.exchanges.{Exchange, External}
 import me.mbcu.crypto.exchanges.Exchange.{BaseCoin, ESettings}
 import me.mbcu.scala.MyLogging
 import org.apache.http.client.methods.HttpPost
@@ -75,6 +75,7 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
   private implicit val ec: ExecutionContextExecutor = global
   import RootActor._
   var startingBalance: Seq[Asset] = Seq.empty
+  var externalBalance: Seq[Asset] = Seq.empty
   var telegramApiKey  = ""
   var telegramChannel = ""
   var creds: Seq[(String, ESettings, String, String)] = Seq.empty
@@ -89,32 +90,37 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
       val jsCfg = read(cfgPath)
       creds           ++= Exchange.credsOf((jsCfg \ "apiKeys").as[JsValue]).flatten
       startingBalance ++= (jsCfg \ "startingBalances").as[Array[Asset]]
+      externalBalance ++= (jsCfg \ "externalBalances").as[Array[Asset]]
       telegramApiKey  = (jsCfg \ "telegram" \ "apiKey").as[String]
       telegramChannel = (jsCfg \ "telegram" \ "channel").as[String]
       intervalSec     = if ((jsCfg \ "env" \ "isProduction").as[Boolean]) 24 * 86400 else 10
       self ! "reset"
 
     case "reset" =>
-      child = creds.size
+      child = creds.size + 1 // external
       res.clear
       initExchanges(creds)
 
     case Complete(r) =>
       res += r
       if (res.size == child){
+
         val allBalances = buildAssetsSum(res.flatMap(_.balances.values))
         val allTotals = buildAssetsSum(res.flatMap(_.totals))
         val out = Out(res, allBalances, allTotals)
         val json = Json.prettyPrint(Json.toJson(out))
 
+        // csv
         val newFileName = currentTime
         RootActor.writeFile(s"$resPath/$newFileName.json", json)
         val oldTotalBalances = if (lastFile == "fresh") startingBalance else read(s"$resPath/$lastFile.json").as[Out].totalBalances
-        val csvReport = CsvReport.build(out, oldTotalBalances.toVector)
+        val csvReport = CsvReport.build(out, oldTotalBalances.toVector, externalBalance.toVector)
+
         val csvFileName = s"$newFileName.csv"
         RootActor.writeFile(s"$resPath/$csvFileName", csvReport)
         telegram(telegramApiKey, telegramChannel, resPath, csvFileName)
         lastFile = newFileName
+        info("PROCESS ENDS")
         context.system.scheduler.scheduleOnce(intervalSec second, self, "reset")
       }
 
@@ -125,12 +131,16 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
   }
 
 
-
-  def initExchanges(m : Seq[(String, ESettings, String, String)]) : Unit =
+  def initExchanges(m : Seq[(String, ESettings, String, String)]) : Unit = {
+    info("PROCESS STARTS")
     m.map(p => {
       val o = Class.forName(p._2.classPath).getConstructors()(0)
-      val args = Array[AnyRef](p._3, p._4, s"$resPath/${p._1}", p._2.rateMillis.toString)
+      val args = Array[AnyRef](p._3, p._4, p._2.rateMillis.toString)
       context.actorOf(Props(o.newInstance(args:_*).asInstanceOf[Exchange]), p._1)
-    }).foreach(_ ! "start")
+    }).foreach(_ ! "start child")
+
+    val externalBalancesString = Json.toJson(externalBalance).toString()
+    context.actorOf(Props(new External(externalBalancesString)), "external") ! "start child"
+  }
 
 }

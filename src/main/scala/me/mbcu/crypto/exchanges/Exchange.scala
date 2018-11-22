@@ -91,7 +91,6 @@ object Exchange {
 
   def filterBalancesForAltCoins(balances: Map[String, AccountBalance]): Seq[String] = balances.filter(p => BaseCoin.withNameOpt(p._1.toLowerCase).isEmpty).keys.toSeq.map(_.toLowerCase)
 
-
   def totalAlt(coin: String, coinBalance: BigDecimal, prices: Map[String, BigDecimal], balances: Map[String, AccountBalance]): BigDecimal =
     // totalAlt sums amount of this coin and base coins' equivalent of this coin
     coinBalance + startingBases.map(p => {
@@ -145,7 +144,7 @@ object Exchange {
 
 }
 
-abstract class Exchange (apikey : String, apisecret: String, outPath: String, reqMillis: String) extends Actor with MyLogging {
+abstract class Exchange (apikey : String, apisecret: String, reqMillis: String) extends Actor with MyLogging {
   import scala.concurrent.duration._
   import scala.language.postfixOps
   private implicit val materializer = ActorMaterializer()
@@ -168,7 +167,7 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
 
   override def receive: Receive = {
 
-    case "start" =>
+    case "start child" =>
       root = Some(sender())
       initDeq
       queue(GetAccountBalances())
@@ -193,7 +192,9 @@ abstract class Exchange (apikey : String, apisecret: String, outPath: String, re
         ETH-USDT
          */
       )
-      val allPairs = altCoinPairs ++ baseCoinPairs
+
+      var allPairs = altCoinPairs ++ baseCoinPairs
+
       ticCounts = allPairs.size
       allPairs.foreach(p => queue(GetTicker(p)))
 

@@ -1,5 +1,7 @@
 package me.mbcu.crypto
 
+import me.mbcu.crypto.CsvReport.CsvCoin.CsvCoin
+import me.mbcu.crypto.exchanges.Exchange
 import me.mbcu.crypto.exchanges.Exchange.BaseCoin.BaseCoin
 
 object CsvReport {
@@ -25,7 +27,7 @@ object CsvReport {
 
   def averageOf(in: Vector[BigDecimal]): BigDecimal = in.sum / in.size
 
-  def build(now: Out, oldTotalBalances: Vector[Asset]): String = {
+  def build(now: Out, oldTotalBalances: Vector[Asset], startTotalBalances: Vector[Asset]): String = {
     val sb = new StringBuffer("Exchange,")
     sb.append(CsvReport.csvCoins.mkString(","))
     sb.append("\n")
@@ -33,7 +35,11 @@ object CsvReport {
     report.map(p => {
       val r = new StringBuffer(p.name)
       r.append(",")
-      val z = CsvReport.csvCoins.map(q => p.balances.find(_._1 == q.toString).getOrElse(q.toString -> Asset(q.toString, "0"))._2.has)
+      val usd = p.balances.getOrElse("usd", Asset("usd", "0"))
+      val usdt = p.balances.getOrElse("usdt", Asset("usdt", "0"))
+      val usdnt = CsvCoin.usdnt.toString -> Asset(CsvCoin.usdnt.toString, (BigDecimal(usd.has) + BigDecimal(usdt.has)).bigDecimal.toPlainString)
+      val balancesWithUsdnt = p.balances + usdnt
+      val z = CsvReport.csvCoins.map(q => balancesWithUsdnt.find(_._1 == q.toString).getOrElse(q.toString -> Asset(q.toString, "0"))._2.has)
       r.append(z.mkString(","))
       r.append("\n")
       r.toString
@@ -44,29 +50,32 @@ object CsvReport {
     sb.append(totals)
     sb.append("\n")
     sb.append("\n")
-    report.foreach(p => {
-      sb.append(p.name)
-      sb.append(",prices\n")
-      p.prices
-        .map(p => {
-          val z = p._1.split("_")
-          (z(0), z(1), BigDecimal(p._2))
-        })
-        .foreach(p => {
-        sb.append(p._1)
-        sb.append("/")
-        sb.append(p._2)
-        sb.append(",")
-        sb.append(p._3)
-        sb.append("\n")
-      })
-      sb.append("\n")
-      //      CsvReport.csvCoins
-      //        .flatMap(p => CsvReport.csvCoins.map(q => (p, q)))
-      //        .foreach(println)
-    })
 
-    sb.append("header,Aggregated Value\n")
+    val ext = report.find(_.name == "external").get
+    sb.append("hitbtc prices,")
+    sb.append(csvCoins.mkString(","))
+    sb.append("\n")
+
+    val prices = ext.prices
+      .map(p => {
+        val z = p._1.split("_")
+        (z(0), z(1), BigDecimal(p._2))
+      })
+    val usdtPrices = prices.filter(p => p._2 == "usd").map(p => (p._1, CsvCoin.usdnt.toString, p._3))
+    val pricesWithUsdt = prices ++ usdtPrices
+
+    def buildPrices(left: CsvCoin): String = {
+      csvCoins.map(p => pricesWithUsdt.find(q => q._1 == left.toString && q._2 == p.toString).getOrElse(("", "", BigDecimal("0")))._3.bigDecimal.toPlainString).mkString(",")
+    }
+    csvCoins.foreach(p => {
+      sb.append(p.toString)
+      sb.append(",")
+      sb.append(buildPrices(p))
+      sb.append("\n")
+    })
+    sb.append("\n")
+
+    sb.append("Values,Aggregated Value\n")
     val totalValues = now.totalValues
     CsvReport.csvCoins.foreach(p => {
       val v = totalValues.find(_.currency == p.toString).getOrElse(Asset(p.toString, "0")).has
@@ -76,7 +85,7 @@ object CsvReport {
       sb.append("\n")
     })
     sb.append("\n")
-    sb.append("header, Total Amount, Start Amount, Change %\n")
+    sb.append("Daily change, Total Amount, Start Amount, Change %\n")
     val newTotalBalances = now.totalBalances.toVector
     val changes = CsvReport.changeOf(oldTotalBalances, newTotalBalances)
     CsvReport.csvCoins.foreach(p => {
@@ -90,13 +99,31 @@ object CsvReport {
       sb.append(v.diff)
       sb.append("\n")
     })
+    sb.append("Average daily change,,,")
+    val avgDailyChange = CsvReport.averageOf(changes.map(_.diff))
+    sb.append(avgDailyChange)
     sb.append("\n")
-    sb.append("Total Change,,,")
-    val totalChange = CsvReport.averageOf(changes.map(_.diff))
-    sb.append(totalChange)
+    sb.append("\n")
+    sb.append("Total change (from start), Total Amount, Start Amount, Change %\n")
+    val changesFromStart = CsvReport.changeOf(startTotalBalances, newTotalBalances)
+    CsvReport.csvCoins.foreach(p => {
+      val v = changesFromStart.find(_.currency == p.toString).getOrElse(AmountChange(p.toString, BigDecimal("0"), BigDecimal("0"), BigDecimal("0")))
+      sb.append(v.currency)
+      sb.append(",")
+      sb.append(v.now)
+      sb.append(",")
+      sb.append(v.old)
+      sb.append(",")
+      sb.append(v.diff)
+      sb.append("\n")
+    })
+    sb.append("Total average change,,,")
+    val avgTotalChange = CsvReport.averageOf(changes.map(_.diff))
+    sb.append(avgTotalChange)
     sb.append("\n")
     sb.toString
   }
+
 
 }
 

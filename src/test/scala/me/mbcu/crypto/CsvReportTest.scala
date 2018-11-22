@@ -284,7 +284,31 @@ class CsvReportTest extends FunSuite {
       |]
     """.stripMargin
 
+  val external =
+    """
+      |[
+      |    {
+      |      "currency": "eth",
+      |      "has": "300"
+      |    },
+      |    {
+      |      "currency": "btc",
+      |      "has": "20"
+      |    },
+      |    {
+      |      "currency": "noah",
+      |      "has": "350300000"
+      |    },
+      |    {
+      |      "currency": "usd",
+      |      "has": "454344"
+      |    }
+      |  ]
+    """.stripMargin
+
+
   val oldTotalBalances = Json.parse(old).as[Array[Asset]].toVector
+  val externalBalances = Json.parse(external).as[Array[Asset]].toVector
 
   test("calculate change test") {
       val newTotalBalances = now.totalBalances.toVector
@@ -292,10 +316,7 @@ class CsvReportTest extends FunSuite {
       assert(changes.find(_.currency == CsvCoin.usdnt.toString).get.now.setScale(5, RoundingMode.DOWN) == BigDecimal(102.96356).setScale(5, RoundingMode.DOWN))
   }
 
-  test("csv structure") {
-    val res = CsvReport.build(now, oldTotalBalances)
-    assert(res.contains("Total Change,,,119.864028127716551625"))
-  }
+
 
 
 }
