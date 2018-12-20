@@ -1,6 +1,6 @@
 {
   "env": {
-    "isProduction": true
+    "intervalMinute": 1
   },
   "telegram": {
     "apiKey": "763453666:asfse_1egfc",

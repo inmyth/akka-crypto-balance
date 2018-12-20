@@ -93,7 +93,7 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
       externalBalance ++= (jsCfg \ "externalBalances").as[Array[Asset]]
       telegramApiKey  = (jsCfg \ "telegram" \ "apiKey").as[String]
       telegramChannel = (jsCfg \ "telegram" \ "channel").as[String]
-      intervalSec     = if ((jsCfg \ "env" \ "isProduction").as[Boolean]) 24 * 86400 else 10
+      intervalSec     = (jsCfg \ "env" \ "intervalMinute").as[Int]
       self ! "reset"
 
     case "reset" =>

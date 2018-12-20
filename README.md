@@ -29,6 +29,9 @@ Refer to json report for clean result. From here result is converted to csv, inc
 
 ## VERSIONS
 
+1.4
+- fixed and changed interval
+
 1.3
 - added external balanced
 - formatted csv
