@@ -81,7 +81,7 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
   var creds: Seq[(String, ESettings, String, String)] = Seq.empty
   var child = 0
   val res: mutable.Buffer[Result] = mutable.Buffer.empty
-  var intervalSec: Int = 0
+  var intervalMinutes: Int = 1
   var lastFile: String = "fresh"
 
 
@@ -93,7 +93,7 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
       externalBalance ++= (jsCfg \ "externalBalances").as[Array[Asset]]
       telegramApiKey  = (jsCfg \ "telegram" \ "apiKey").as[String]
       telegramChannel = (jsCfg \ "telegram" \ "channel").as[String]
-      intervalSec     = (jsCfg \ "env" \ "intervalMinute").as[Int]
+      intervalMinutes = (jsCfg \ "env" \ "intervalMinute").as[Int]
       self ! "reset"
 
     case "reset" =>
@@ -121,7 +121,7 @@ class RootActor(cfgPath: String, resPath: String) extends Actor with MyLogging{
         telegram(telegramApiKey, telegramChannel, resPath, csvFileName)
         lastFile = newFileName
         info("PROCESS ENDS")
-        context.system.scheduler.scheduleOnce(intervalSec second, self, "reset")
+        context.system.scheduler.scheduleOnce(intervalMinutes minutes, self, "reset")
       }
 
     case Shutdown(message: Option[String]) =>

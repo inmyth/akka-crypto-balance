@@ -29,7 +29,7 @@ Refer to json report for clean result. From here result is converted to csv, inc
 
 ## VERSIONS
 
-1.4
+1.5
 - fixed and changed interval
 
 1.3
