@@ -1,6 +1,6 @@
 name := "akka-crypto-balance"
 
-version := "1.5"
+version := "1.6"
 
 scalaVersion := "2.12.7"
 

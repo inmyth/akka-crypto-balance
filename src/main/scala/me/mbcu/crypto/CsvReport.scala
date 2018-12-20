@@ -21,7 +21,7 @@ object CsvReport {
     csvCoins.map(p => {
       val o = BigDecimal(old.find(_.currency == p.toString).getOrElse(Asset(p.toString, "0")).has)
       val n = BigDecimal(now.find(_.currency == p.toString).getOrElse(Asset(p.toString, "0")).has)
-      val d = (n - o) / o * 100
+      val d = if (o.compare(BigDecimal("0")) == 0) n else (n - o) / o * 100
       AmountChange(p.toString, o, n, d)
     })
 
